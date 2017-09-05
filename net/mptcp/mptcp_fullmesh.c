@@ -92,7 +92,9 @@ struct mptcp_fm_ns {
 };
 
 static int num_subflows __read_mostly = 1;
+static int dont_remove __read_mostly = 1;
 module_param(num_subflows, int, 0644);
+module_param(dont_remove, int, 0644);
 MODULE_PARM_DESC(num_subflows, "choose the number of subflows per pair of IP addresses of MPTCP connection");
 
 static int create_on_err __read_mostly;
@@ -1031,9 +1033,11 @@ static void addr4_event_handler(const struct in_ifaddr *ifa, unsigned long event
 	mpevent.if_idx  = netdev->ifindex;
 
 	if (event == NETDEV_DOWN || !netif_running(netdev) ||
-	    (netdev->flags & IFF_NOMULTIPATH) || !(netdev->flags & IFF_UP))
+	    (netdev->flags & IFF_NOMULTIPATH) || !(netdev->flags & IFF_UP)) {
+		if(dont_remove && !(netdev->flags & IFF_NOMULTIPATH))
+			goto exit;
 		mpevent.code = MPTCP_EVENT_DEL;
-	else if (event == NETDEV_UP)
+	} else if (event == NETDEV_UP)
 		mpevent.code = MPTCP_EVENT_ADD;
 	else if (event == NETDEV_CHANGE)
 		mpevent.code = MPTCP_EVENT_MOD;
@@ -1042,6 +1046,7 @@ static void addr4_event_handler(const struct in_ifaddr *ifa, unsigned long event
 		    &ifa->ifa_local, mpevent.code, mpevent.low_prio);
 	add_pm_event(net, &mpevent);
 
+exit:
 	spin_unlock_bh(&fm_ns->local_lock);
 	return;
 }
@@ -1155,9 +1160,11 @@ static void addr6_event_handler(const struct inet6_ifaddr *ifa, unsigned long ev
 	mpevent.if_idx = netdev->ifindex;
 
 	if (event == NETDEV_DOWN || !netif_running(netdev) ||
-	    (netdev->flags & IFF_NOMULTIPATH) || !(netdev->flags & IFF_UP))
+	    (netdev->flags & IFF_NOMULTIPATH) || !(netdev->flags & IFF_UP)) {
+		if(dont_remove && !(netdev->flags & IFF_NOMULTIPATH))
+			goto exit;
 		mpevent.code = MPTCP_EVENT_DEL;
-	else if (event == NETDEV_UP)
+	} else if (event == NETDEV_UP)
 		mpevent.code = MPTCP_EVENT_ADD;
 	else if (event == NETDEV_CHANGE)
 		mpevent.code = MPTCP_EVENT_MOD;
@@ -1166,6 +1173,7 @@ static void addr6_event_handler(const struct inet6_ifaddr *ifa, unsigned long ev
 		    &ifa->addr, mpevent.code, mpevent.low_prio);
 	add_pm_event(net, &mpevent);
 
+exit:
 	spin_unlock_bh(&fm_ns->local_lock);
 	return;
 }
