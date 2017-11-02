@@ -97,6 +97,7 @@ static int dont_remove __read_mostly = 1;
 module_param(num_subflows, int, 0644);
 module_param(dont_remove, int, 0644);
 MODULE_PARM_DESC(num_subflows, "choose the number of subflows per pair of IP addresses of MPTCP connection");
+MODULE_PARM_DESC(dont_remove, "if set, never issue REMOVE_ADDR messages.  Useful if all interfaces share a common address");
 
 static int create_on_err __read_mostly;
 module_param(create_on_err, int, 0644);
