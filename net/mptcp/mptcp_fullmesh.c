@@ -94,10 +94,13 @@ struct mptcp_fm_ns {
 
 static int num_subflows __read_mostly = 1;
 static int dont_remove __read_mostly = 1;
+static int ignore_iface __read_mostly = 1;
 module_param(num_subflows, int, 0644);
 module_param(dont_remove, int, 0644);
+module_param(ignore_iface, int, 0644);
 MODULE_PARM_DESC(num_subflows, "choose the number of subflows per pair of IP addresses of MPTCP connection");
 MODULE_PARM_DESC(dont_remove, "if set, never issue REMOVE_ADDR messages.  Useful if all interfaces share a common address");
+MODULE_PARM_DESC(ignore_iface, "if set, only unique IP address will create additional subflows.  Otherwise, use both address and interface (a new interface with a previously used address will generate a new subflow");
 
 static int create_on_err __read_mostly;
 module_param(create_on_err, int, 0644);
@@ -1032,7 +1035,7 @@ static void addr4_event_handler(const struct in_ifaddr *ifa, unsigned long event
 	mpevent.family = AF_INET;
 	mpevent.addr.in.s_addr = ifa->ifa_local;
 	mpevent.low_prio = (netdev->flags & IFF_MPBACKUP) ? 1 : 0;
-	mpevent.if_idx  = netdev->ifindex;
+	mpevent.if_idx  = (ignore_iface) ? 0 : netdev->ifindex;
 
 	if (event == NETDEV_DOWN || !netif_running(netdev) ||
 	    (netdev->flags & IFF_NOMULTIPATH) || !(netdev->flags & IFF_UP)) {
@@ -1159,7 +1162,7 @@ static void addr6_event_handler(const struct inet6_ifaddr *ifa, unsigned long ev
 	mpevent.family = AF_INET6;
 	mpevent.addr.in6 = ifa->addr;
 	mpevent.low_prio = (netdev->flags & IFF_MPBACKUP) ? 1 : 0;
-	mpevent.if_idx = netdev->ifindex;
+	mpevent.if_idx  = (ignore_iface) ? 0 : netdev->ifindex;
 
 	if (event == NETDEV_DOWN || !netif_running(netdev) ||
 	    (netdev->flags & IFF_NOMULTIPATH) || !(netdev->flags & IFF_UP)) {
@@ -1282,6 +1285,10 @@ static void full_mesh_new_session(const struct sock *meta_sk)
 		family = AF_INET6;
 #endif
 	}
+
+	/* unset if_idx if ignore is set */
+	if (ignore_iface)
+		if_idx = 0;
 
 	rcu_read_lock();
 	mptcp_local = rcu_dereference(fm_ns->local);
